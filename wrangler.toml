@@ -1,0 +1,10 @@
+name = "diary-server"
+main = "worker.js"
+compatibility_date = "2025-01-01"
+
+kv_namespaces = [
+  { binding = "POSTS_KV", id = "ce776f15165b4693985154c62abcaf81" }
+]
+
+[vars]
+ALLOWED_ORIGIN = "https://user-x45.github.io"
