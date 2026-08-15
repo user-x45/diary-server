@@ -4,7 +4,7 @@ export default {
     const origin = env.ALLOWED_ORIGIN || "*";
     const corsHeaders = {
       "Access-Control-Allow-Origin": origin,
-      "Access-Control-Allow-Methods": "GET,POST,DELETE,OPTIONS",
+      "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,OPTIONS",
       "Access-Control-Allow-Headers": "Content-Type,X-Password",
     };
 
@@ -52,10 +52,34 @@ export default {
       return json(post, 201);
     }
 
-    const deleteMatch = url.pathname.match(/^\/api\/posts\/([^/]+)$/);
-    if (deleteMatch && request.method === "DELETE") {
+    const idMatch = url.pathname.match(/^\/api\/posts\/([^/]+)$/);
+
+    if (idMatch && request.method === "PUT") {
       if (!checkAuth(request)) return json({ error: "Unauthorized" }, 401);
-      const id = deleteMatch[1];
+      let body;
+      try {
+        body = await request.json();
+      } catch {
+        return json({ error: "Invalid JSON" }, 400);
+      }
+      const content = (body.content || "").trim();
+      if (!content) return json({ error: "Content required" }, 400);
+      const id = idMatch[1];
+      const list = await env.POSTS_KV.list({ prefix: "post:" });
+      const target = list.keys.find((k) => k.name.endsWith(id));
+      if (!target) return json({ error: "Not found" }, 404);
+      const value = await env.POSTS_KV.get(target.name);
+      if (!value) return json({ error: "Not found" }, 404);
+      const post = JSON.parse(value);
+      post.content = content;
+      post.updatedAt = Date.now();
+      await env.POSTS_KV.put(target.name, JSON.stringify(post));
+      return json(post);
+    }
+
+    if (idMatch && request.method === "DELETE") {
+      if (!checkAuth(request)) return json({ error: "Unauthorized" }, 401);
+      const id = idMatch[1];
       const list = await env.POSTS_KV.list({ prefix: "post:" });
       const target = list.keys.find((k) => k.name.endsWith(id));
       if (target) await env.POSTS_KV.delete(target.name);
