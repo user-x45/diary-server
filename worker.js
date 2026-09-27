@@ -26,11 +26,16 @@ export default {
     if (url.pathname === "/api/posts" && request.method === "GET") {
       if (!checkAuth(request)) return json({ error: "Unauthorized" }, 401);
       const list = await env.POSTS_KV.list({ prefix: "post:" });
-      const posts = list.keys
-        .map((key) => key.metadata)
-        .filter(Boolean);
-      posts.sort((a, b) => b.createdAt - a.createdAt);
-      return json(posts);
+      const posts = await Promise.all(
+        list.keys.map(async (key) => {
+          if (key.metadata) return key.metadata;
+          const value = await env.POSTS_KV.get(key.name);
+          return value ? JSON.parse(value) : null;
+        })
+      );
+      const validPosts = posts.filter(Boolean);
+      validPosts.sort((a, b) => b.createdAt - a.createdAt);
+      return json(validPosts);
     }
 
     if (url.pathname === "/api/posts" && request.method === "POST") {
