@@ -26,11 +26,9 @@ export default {
     if (url.pathname === "/api/posts" && request.method === "GET") {
       if (!checkAuth(request)) return json({ error: "Unauthorized" }, 401);
       const list = await env.POSTS_KV.list({ prefix: "post:" });
-      const posts = [];
-      for (const key of list.keys) {
-        const value = await env.POSTS_KV.get(key.name);
-        if (value) posts.push(JSON.parse(value));
-      }
+      const posts = list.keys
+        .map((key) => key.metadata)
+        .filter(Boolean);
       posts.sort((a, b) => b.createdAt - a.createdAt);
       return json(posts);
     }
@@ -48,7 +46,9 @@ export default {
       const createdAt = Date.now();
       const id = crypto.randomUUID();
       const post = { id, content, createdAt };
-      await env.POSTS_KV.put(`post:${createdAt}:${id}`, JSON.stringify(post));
+      await env.POSTS_KV.put(`post:${createdAt}:${id}`, JSON.stringify(post), {
+        metadata: post,
+      });
       return json(post, 201);
     }
 
@@ -73,7 +73,9 @@ export default {
       const post = JSON.parse(value);
       post.content = content;
       post.updatedAt = Date.now();
-      await env.POSTS_KV.put(target.name, JSON.stringify(post));
+      await env.POSTS_KV.put(target.name, JSON.stringify(post), {
+        metadata: post,
+      });
       return json(post);
     }
 
